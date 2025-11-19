@@ -6,9 +6,6 @@ package-lock.json
 
 # Output files
 output/
-*.json
-!package.json
-*.csv
 
 # Git
 .git
