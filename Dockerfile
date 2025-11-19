@@ -17,7 +17,7 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
 WORKDIR /app
 
 # Instalar dependencias de Node.js
-COPY package*.json ./
+COPY package.json ./
 RUN npm install --production
 
 # Copiar código fuente
