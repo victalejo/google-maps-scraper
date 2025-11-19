@@ -1,5 +1,8 @@
 # 🗺️ Google Maps Scraper - Network Interception v2.0
 
+[![GitHub](https://img.shields.io/badge/GitHub-victalejo%2Fgoogle--maps--scraper-blue?logo=github)](https://github.com/victalejo/google-maps-scraper)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Scraper avanzado para obtener **todas las reseñas** de Google Maps utilizando **Network Interception** con Puppeteer y Chrome DevTools Protocol (CDP). Extrae datos completos sin usar selectores HTML.
 
 ## 🎉 Nuevo en v2.0: Sistema de Jobs Asíncrono
