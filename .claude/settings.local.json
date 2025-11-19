@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill /F /PID 15408)",
+      "Bash(cmd /c \"taskkill /F /PID 15408\")",
+      "Bash(powershell -Command \"Stop-Process -Id 15408 -Force\")",
+      "Bash(curl:*)",
+      "Bash(npm run api:*)",
+      "Bash(timeout:*)",
+      "Bash(node test-api.js:*)",
+      "Bash(node --version:*)",
+      "Bash(start:*)",
+      "Bash(ping:*)",
+      "Bash(node server.js:*)",
+      "Bash(nul)",
+      "Bash(node:*)",
+      "Bash(ssh:*)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(set GIT_SSH_COMMAND=ssh -i C:Usersvicto.sshaurora -o IdentitiesOnly=yes)",
+      "Bash(git push:*)",
+      "Bash(cmd /c \"set GIT_SSH_COMMAND=ssh -i C:\\Users\\victo\\.ssh\\aurora -o IdentitiesOnly=yes && git push dokku master:main\")",
+      "Bash(GIT_SSH_COMMAND='ssh -i /c/Users/victo/.ssh/aurora -o IdentitiesOnly=yes' git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
