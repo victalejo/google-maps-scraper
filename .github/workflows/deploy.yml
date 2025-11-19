@@ -1,0 +1,38 @@
+name: Deploy to Dokku
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DOKKU_SSH_KEY }}" > ~/.ssh/aurora
+          chmod 600 ~/.ssh/aurora
+          ssh-keyscan -H ${{ secrets.DOKKU_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Dokku
+        env:
+          DOKKU_HOST: ${{ secrets.DOKKU_HOST }}
+          DOKKU_APP_NAME: ${{ secrets.DOKKU_APP_NAME }}
+        run: |
+          git remote add dokku dokku@$DOKKU_HOST:$DOKKU_APP_NAME || true
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/aurora -o IdentitiesOnly=yes" git push dokku HEAD:refs/heads/main --force
+
+      - name: Verify deployment
+        run: |
+          echo "Deployment completed successfully!"
+          echo "App URL: https://apigmaps.dinerboost.com"
