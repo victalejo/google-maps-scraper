@@ -5,7 +5,6 @@ yarn.lock
 
 # Output files
 output/
-*.json
 *.csv
 
 # Logs
