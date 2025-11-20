@@ -304,43 +304,84 @@ class GoogleMapsScraper {
       console.log('📍 Paso 1: Buscando botón de ordenar...');
 
       let sortClicked = false;
-      let sortButton = null;
 
-      // Estrategia A: Intentar con querySelector (más rápido y preciso)
+      // Buscar botón de ordenar y hacer scroll hasta él (CRÍTICO PARA HEADLESS)
       try {
-        sortButton = await this.page.evaluateHandle(() => {
-          // Buscar botón con aria-label que contenga "ordenar" o "sort"
+        const sortButtonFound = await this.page.evaluate(() => {
           const buttons = Array.from(document.querySelectorAll('button[aria-label]'));
-          return buttons.find(btn => {
+          const sortBtn = buttons.find(btn => {
             const label = btn.getAttribute('aria-label').toLowerCase();
             return label.includes('ordenar') || label.includes('sort');
           });
+
+          if (sortBtn) {
+            // Hacer scroll hasta el elemento (crítico en headless)
+            sortBtn.scrollIntoView({ behavior: 'instant', block: 'center' });
+            return {
+              found: true,
+              label: sortBtn.getAttribute('aria-label'),
+              text: sortBtn.textContent.trim()
+            };
+          }
+
+          return { found: false };
         });
 
-        if (sortButton && sortButton.asElement()) {
-          await sortButton.asElement().click();
-          console.log('✅ Click en botón Ordenar (querySelector)');
+        if (sortButtonFound.found) {
+          console.log(`📌 Botón encontrado: "${sortButtonFound.label}"`);
+
+          // Esperar un momento después del scroll
+          await this.randomDelay(500, 1000);
+
+          // Hacer click usando JavaScript (más confiable en headless)
+          await this.page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll('button[aria-label]'));
+            const sortBtn = buttons.find(btn => {
+              const label = btn.getAttribute('aria-label').toLowerCase();
+              return label.includes('ordenar') || label.includes('sort');
+            });
+
+            if (sortBtn) {
+              sortBtn.click();
+              return true;
+            }
+            return false;
+          });
+
+          console.log('✅ Click ejecutado en botón Ordenar (JavaScript)');
           sortClicked = true;
-          await this.randomDelay(3000, 4000); // Espera más larga para que el menú se abra
+
+          // Espera más larga para que el menú se abra
+          await this.randomDelay(3000, 4000);
         }
       } catch (e) {
-        console.log('⚠️  Estrategia querySelector falló, intentando XPath...');
+        console.log('⚠️  Error en estrategia principal:', e.message);
       }
 
-      // Estrategia B: Fallback con XPath si querySelector falla
+      // Fallback: intentar con XPath si la estrategia principal falla
       if (!sortClicked) {
+        console.log('⚠️  Intentando estrategia XPath...');
+
         const sortXpaths = [
           '//button[contains(translate(@aria-label, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "ordenar")]',
           '//button[contains(translate(@aria-label, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "sort")]',
-          '//button[contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "ordenar")]'
         ];
 
         for (const xpath of sortXpaths) {
           try {
             const elements = await this.page.$x(xpath);
             if (elements.length > 0) {
-              await elements[0].click();
-              console.log('✅ Click en botón Ordenar (XPath)');
+              // Hacer scroll al elemento
+              await this.page.evaluate(el => {
+                el.scrollIntoView({ behavior: 'instant', block: 'center' });
+              }, elements[0]);
+
+              await this.randomDelay(500, 1000);
+
+              // Click usando evaluate (más confiable)
+              await this.page.evaluate(el => el.click(), elements[0]);
+
+              console.log('✅ Click en botón Ordenar (XPath con JS)');
               sortClicked = true;
               await this.randomDelay(3000, 4000);
               break;
@@ -361,38 +402,54 @@ class GoogleMapsScraper {
       // ============================================================
       console.log('📍 Paso 2: Verificando que el menú se abrió...');
 
-      const menuVisible = await this.page.evaluate(() => {
-        const menu = document.querySelector('[role="menu"]');
-        if (!menu) return false;
+      // Esperar a que el menú sea visible
+      let menuOpened = false;
+      const maxAttempts = 10;
 
-        // Verificar que el menú está visible y tiene elementos
-        const menuItems = menu.querySelectorAll('[role="menuitemradio"]');
-        console.log(`Menú encontrado con ${menuItems.length} opciones`);
-        return menuItems.length > 0;
-      });
+      for (let i = 0; i < maxAttempts; i++) {
+        const menuCheck = await this.page.evaluate(() => {
+          const menu = document.querySelector('[role="menu"]');
+          if (!menu) return { visible: false };
 
-      if (!menuVisible) {
-        console.log('❌ El menú no se abrió correctamente');
-        return;
+          const menuItems = menu.querySelectorAll('[role="menuitemradio"]');
+          const items = Array.from(menuItems).map(item => item.textContent.trim());
+
+          return {
+            visible: menuItems.length > 0,
+            itemCount: menuItems.length,
+            items: items
+          };
+        });
+
+        if (menuCheck.visible) {
+          console.log(`✅ Menú abierto con ${menuCheck.itemCount} opciones:`, menuCheck.items);
+          menuOpened = true;
+          break;
+        }
+
+        // Esperar un poco antes de reintentar
+        await this.randomDelay(300, 500);
       }
 
-      console.log('✅ Menú desplegable abierto correctamente');
+      if (!menuOpened) {
+        console.log('❌ El menú no se abrió correctamente después de múltiples intentos');
+        return;
+      }
 
       // ============================================================
       // PASO 3: BUSCAR Y HACER CLICK EN "MÁS RECIENTES"
       // ============================================================
-      console.log('📍 Paso 3: Buscando opción "Más recientes"...');
+      console.log('📍 Paso 3: Buscando y haciendo click en "Más recientes"...');
 
       let newestClicked = false;
 
-      // Estrategia A: Usar querySelector dentro del menú (más preciso)
       try {
+        // Primero hacer scroll a la opción y luego hacer click
         const clickResult = await this.page.evaluate(() => {
           const menu = document.querySelector('[role="menu"]');
           if (!menu) return { success: false, error: 'Menú no encontrado' };
 
           const menuItems = Array.from(menu.querySelectorAll('[role="menuitemradio"]'));
-          console.log('Opciones del menú:', menuItems.map(item => item.textContent.trim()));
 
           // Buscar la opción que contenga "reciente" o "newest"
           const newestOption = menuItems.find(item => {
@@ -401,30 +458,39 @@ class GoogleMapsScraper {
           });
 
           if (newestOption) {
-            newestOption.click();
-            return { success: true, text: newestOption.textContent.trim() };
+            // Hacer scroll hasta la opción (crítico en headless)
+            newestOption.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+
+            // Esperar un frame antes de hacer click
+            return new Promise(resolve => {
+              requestAnimationFrame(() => {
+                newestOption.click();
+                resolve({ success: true, text: newestOption.textContent.trim() });
+              });
+            });
           }
 
-          return { success: false, error: 'Opción no encontrada' };
+          return { success: false, error: 'Opción "Más recientes" no encontrada' };
         });
 
         if (clickResult.success) {
-          console.log(`✅ Seleccionado: ${clickResult.text} (querySelector)`);
+          console.log(`✅ Seleccionado: "${clickResult.text}" (JavaScript con scroll)`);
           newestClicked = true;
         } else {
-          console.log(`⚠️  querySelector falló: ${clickResult.error}`);
+          console.log(`⚠️  ${clickResult.error}`);
         }
       } catch (e) {
-        console.log('⚠️  Estrategia querySelector falló para menú, intentando XPath...');
+        console.log('⚠️  Error haciendo click en "Más recientes":', e.message);
       }
 
-      // Estrategia B: Fallback con XPath
+      // Fallback con XPath si falla
       if (!newestClicked) {
+        console.log('⚠️  Intentando estrategia XPath para "Más recientes"...');
+
         const newestXpaths = [
           '//*[@role="menuitemradio" and contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "reciente")]',
           '//*[@role="menuitemradio" and contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "newest")]',
           '//*[@role="menuitem" and contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "reciente")]',
-          '//*[@role="menuitem" and contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "newest")]'
         ];
 
         for (const xpath of newestXpaths) {
@@ -432,8 +498,14 @@ class GoogleMapsScraper {
             const elements = await this.page.$x(xpath);
             if (elements.length > 0) {
               const text = await this.page.evaluate(el => el.textContent.trim(), elements[0]);
-              await elements[0].click();
-              console.log(`✅ Seleccionado: ${text} (XPath)`);
+
+              // Scroll y click con JavaScript
+              await this.page.evaluate(el => {
+                el.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+                el.click();
+              }, elements[0]);
+
+              console.log(`✅ Seleccionado: "${text}" (XPath con JS)`);
               newestClicked = true;
               break;
             }
@@ -455,7 +527,7 @@ class GoogleMapsScraper {
 
       // CRÍTICO: Esperar a que se carguen las reseñas ordenadas
       // Esto debería generar nuevas solicitudes a /maps/rpc/listugcposts
-      await this.randomDelay(4000, 5000);
+      await this.randomDelay(5000, 6000);
 
       console.log('✅ Ordenamiento completado - las reseñas deberían estar ordenadas por más recientes');
 

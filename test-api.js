@@ -1,117 +1,97 @@
-/**
- * Script de prueba para el sistema de jobs
- */
-
 const http = require('http');
 
-function makeRequest(method, path, data = null) {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'localhost',
-      port: 3001,
-      path: path,
-      method: method,
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    };
+const url = 'https://www.google.com/maps/place/BTK+Tecnol%C3%B3gico/@19.267822,-99.5767884,17z/data=!4m8!3m7!1s0x85cd8bdb988e3a8f:0x4f62740ae63ef3ac!8m2!3d19.267822!4d-99.5767884!9m1!1b1!16s%2Fg%2F11g_yfcy17?entry=ttu&g_ep=EgoyMDI1MTExNy4wIKXMDSoASAFQAw%3D%3D';
 
-    const req = http.request(options, (res) => {
-      let body = '';
-      res.on('data', (chunk) => body += chunk);
-      res.on('end', () => {
-        try {
-          resolve(JSON.parse(body));
-        } catch (e) {
-          resolve(body);
-        }
-      });
-    });
+const postData = JSON.stringify({
+  url: url,
+  maxScrolls: 10,
+  headless: true,
+  scrollDelay: 2000,
+  waitAfterSort: 3000,
+  timeout: 60000
+});
 
-    req.on('error', reject);
-
-    if (data) {
-      req.write(JSON.stringify(data));
-    }
-
-    req.end();
-  });
-}
-
-async function testJobSystem() {
-  console.log('🧪 Iniciando pruebas del sistema de jobs...\n');
-
-  try {
-    // 1. Verificar estado inicial
-    console.log('1️⃣ Verificando configuración inicial...');
-    const config = await makeRequest('GET', '/api/config');
-    console.log('   ✅ Max concurrent jobs:', config.config.maxConcurrentJobs);
-    console.log('   ✅ Jobs en cola:', config.currentLoad.pending);
-    console.log('   ✅ Jobs procesando:', config.currentLoad.processing, '\n');
-
-    // 2. Crear un job de prueba
-    console.log('2️⃣ Creando job de prueba...');
-    const startTime = Date.now();
-
-    const jobResponse = await makeRequest('POST', '/api/scrape', {
-      url: 'https://www.google.com/maps/place/test',
-      maxScrolls: 2,
-      headless: true
-    });
-
-    const responseTime = Date.now() - startTime;
-
-    console.log('   ✅ Respuesta recibida en:', responseTime, 'ms (respuesta inmediata!)');
-    console.log('   ✅ Job ID:', jobResponse.job.jobId);
-    console.log('   ✅ Status:', jobResponse.job.status, '\n');
-
-    const jobId = jobResponse.job.jobId;
-
-    // 3. Verificar estado del job
-    console.log('3️⃣ Verificando estado del job después de 1 segundo...');
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const jobStatus = await makeRequest('GET', '/api/jobs/' + jobId);
-    console.log('   ✅ Status:', jobStatus.job.status);
-    console.log('   ✅ Progreso:', jobStatus.job.progress.percentage + '% -', jobStatus.job.progress.message, '\n');
-
-    // 4. Listar todos los jobs
-    console.log('4️⃣ Listando todos los jobs...');
-    const allJobs = await makeRequest('GET', '/api/jobs');
-    console.log('   ✅ Total de jobs:', allJobs.stats.total);
-    console.log('   ✅ Pending:', allJobs.stats.pending);
-    console.log('   ✅ Processing:', allJobs.stats.processing);
-    console.log('   ✅ Completed:', allJobs.stats.completed);
-    console.log('   ✅ Failed:', allJobs.stats.failed, '\n');
-
-    // 5. Esperar un poco más
-    console.log('5️⃣ Esperando 3 segundos más...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    const finalStatus = await makeRequest('GET', '/api/jobs/' + jobId);
-    console.log('   ✅ Status final:', finalStatus.job.status);
-    console.log('   ✅ Progreso:', finalStatus.job.progress.percentage + '%\n');
-
-    // 6. Si falló, mostrar error
-    if (finalStatus.job.status === 'failed') {
-      console.log('⚠️  Job falló como se esperaba (URL de prueba inválida)');
-      console.log('   Error:', finalStatus.job.error, '\n');
-    }
-
-    // 7. Limpiar jobs
-    console.log('6️⃣ Limpiando jobs...');
-    const cleanupResult = await makeRequest('DELETE', '/api/jobs');
-    console.log('   ✅', cleanupResult.message, '\n');
-
-    console.log('✅ Todas las pruebas completadas exitosamente!\n');
-    console.log('📊 RESUMEN:');
-    console.log('   - La API respondió en ' + responseTime + 'ms (inmediato)');
-    console.log('   - El sistema de jobs funciona correctamente');
-    console.log('   - Los endpoints de gestión funcionan correctamente\n');
-
-  } catch (error) {
-    console.error('❌ Error durante las pruebas:', error.message);
+const options = {
+  hostname: 'localhost',
+  port: 3001,
+  path: '/api/scrape',
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(postData)
   }
-}
+};
 
-testJobSystem();
+console.log('Testing API in HEADLESS mode...');
+console.log('URL:', url);
+console.log('headless: true\n');
+
+const req = http.request(options, (res) => {
+  let data = '';
+  res.on('data', (chunk) => { data += chunk; });
+  res.on('end', () => {
+    const response = JSON.parse(data);
+    console.log('Response:', JSON.stringify(response, null, 2));
+
+    if (response.success && response.job) {
+      const jobId = response.job.jobId;
+      console.log('\nJob created:', jobId);
+      console.log('Waiting 30s for completion...');
+
+      setTimeout(() => {
+        checkJobStatus(jobId);
+      }, 30000);
+    }
+  });
+});
+
+req.on('error', (error) => { console.error('Error:', error.message); });
+req.write(postData);
+req.end();
+
+function checkJobStatus(jobId) {
+  console.log('\nChecking job status...');
+
+  http.get({
+    hostname: 'localhost',
+    port: 3001,
+    path: `/api/jobs/${jobId}`
+  }, (res) => {
+    let data = '';
+    res.on('data', (chunk) => { data += chunk; });
+    res.on('end', () => {
+      const response = JSON.parse(data);
+
+      if (response.success && response.job) {
+        const job = response.job;
+        console.log('Status:', job.status);
+        console.log('Progress:', job.progress?.percentage + '%');
+
+        if (job.status === 'completed' && job.result) {
+          const reviews = job.result.reviews || [];
+          console.log('\nTotal reviews:', reviews.length);
+
+          if (reviews.length > 0) {
+            console.log('\nFirst 5 reviews:');
+            for (let i = 0; i < Math.min(5, reviews.length); i++) {
+              const r = reviews[i];
+              console.log(`${i+1}. ${r.autor} - ${r.fecha_relativa} - ${r.calificacion} stars`);
+            }
+
+            const luisReview = reviews.find(r => r.autor && r.autor.toLowerCase().includes('luis') && r.autor.toLowerCase().includes('garc'));
+            if (luisReview) {
+              console.log('\n✅ Luis García review FOUND!');
+            } else {
+              console.log('\n⚠️  Luis García review NOT found');
+            }
+          }
+        } else if (job.status === 'processing') {
+          console.log('Still processing... waiting 15s more...');
+          setTimeout(() => checkJobStatus(jobId), 15000);
+        } else if (job.status === 'failed') {
+          console.log('Job FAILED:', job.error);
+        }
+      }
+    });
+  }).on('error', (err) => { console.error('Error:', err.message); });
+}
