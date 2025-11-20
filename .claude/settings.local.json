@@ -25,7 +25,18 @@
       "Bash(cmd /c \"set GIT_SSH_COMMAND=ssh -i C:\\Users\\victo\\.ssh\\aurora -o IdentitiesOnly=yes && git push dokku master:main\")",
       "Bash(GIT_SSH_COMMAND='ssh -i /c/Users/victo/.ssh/aurora -o IdentitiesOnly=yes' git push:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git branch:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run watch:*)",
+      "mcp__chrome-devtools__list_pages",
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__click",
+      "mcp__chrome-devtools__evaluate_script",
+      "mcp__chrome-devtools__take_screenshot",
+      "mcp__chrome-devtools__press_key"
     ],
     "deny": [],
     "ask": []

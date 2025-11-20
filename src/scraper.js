@@ -298,91 +298,170 @@ class GoogleMapsScraper {
       // Esperar a que la interfaz esté lista
       await this.randomDelay(2000, 3000);
 
-      // Estrategia 1: Buscar todos los botones y encontrar el de ordenar
-      const sortButtons = await this.page.evaluate(() => {
-        const buttons = Array.from(document.querySelectorAll('button'));
-        return buttons
-          .filter(btn => {
-            const label = btn.getAttribute('aria-label') || '';
-            const text = btn.textContent || '';
-            return label.toLowerCase().includes('ordenar') ||
-                   label.toLowerCase().includes('sort') ||
-                   text.toLowerCase().includes('ordenar') ||
-                   text.toLowerCase().includes('sort');
-          })
-          .map((btn, index) => ({
-            index,
-            label: btn.getAttribute('aria-label'),
-            text: btn.textContent
-          }));
-      });
+      // ============================================================
+      // PASO 1: ENCONTRAR Y HACER CLICK EN EL BOTÓN "ORDENAR"
+      // ============================================================
+      console.log('📍 Paso 1: Buscando botón de ordenar...');
 
-      console.log('📋 Botones de ordenar encontrados:', sortButtons);
-
-      // Estrategia 2: Click usando XPath
       let sortClicked = false;
+      let sortButton = null;
 
-      const sortXpaths = [
-        '//button[contains(translate(@aria-label, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "ordenar")]',
-        '//button[contains(translate(@aria-label, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "sort")]',
-        '//button[contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "ordenar")]'
-      ];
+      // Estrategia A: Intentar con querySelector (más rápido y preciso)
+      try {
+        sortButton = await this.page.evaluateHandle(() => {
+          // Buscar botón con aria-label que contenga "ordenar" o "sort"
+          const buttons = Array.from(document.querySelectorAll('button[aria-label]'));
+          return buttons.find(btn => {
+            const label = btn.getAttribute('aria-label').toLowerCase();
+            return label.includes('ordenar') || label.includes('sort');
+          });
+        });
 
-      for (const xpath of sortXpaths) {
-        try {
-          const elements = await this.page.$x(xpath);
-          if (elements.length > 0) {
-            await elements[0].click();
-            console.log('✅ Click en botón Ordenar');
-            sortClicked = true;
-            await this.randomDelay(2000, 3000);
-            break;
+        if (sortButton && sortButton.asElement()) {
+          await sortButton.asElement().click();
+          console.log('✅ Click en botón Ordenar (querySelector)');
+          sortClicked = true;
+          await this.randomDelay(3000, 4000); // Espera más larga para que el menú se abra
+        }
+      } catch (e) {
+        console.log('⚠️  Estrategia querySelector falló, intentando XPath...');
+      }
+
+      // Estrategia B: Fallback con XPath si querySelector falla
+      if (!sortClicked) {
+        const sortXpaths = [
+          '//button[contains(translate(@aria-label, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "ordenar")]',
+          '//button[contains(translate(@aria-label, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "sort")]',
+          '//button[contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "ordenar")]'
+        ];
+
+        for (const xpath of sortXpaths) {
+          try {
+            const elements = await this.page.$x(xpath);
+            if (elements.length > 0) {
+              await elements[0].click();
+              console.log('✅ Click en botón Ordenar (XPath)');
+              sortClicked = true;
+              await this.randomDelay(3000, 4000);
+              break;
+            }
+          } catch (e) {
+            // Continuar con el siguiente XPath
           }
-        } catch (e) {
-          // Continuar
         }
       }
 
       if (!sortClicked) {
-        console.log('⚠️  No se encontró botón de ordenar');
+        console.log('❌ No se encontró botón de ordenar');
         return;
       }
 
-      // Buscar y hacer click en "Más recientes"
-      // IMPORTANTE: Los elementos del menú son <menuitemradio>, no <div>
-      const newestXpaths = [
-        '//*[@role="menuitemradio" and contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "reciente")]',
-        '//*[@role="menuitemradio" and contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "newest")]',
-        '//*[@role="menuitem" and contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "reciente")]',
-        '//*[@role="menuitem" and contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "newest")]'
-      ];
+      // ============================================================
+      // PASO 2: VERIFICAR QUE EL MENÚ SE ABRIÓ
+      // ============================================================
+      console.log('📍 Paso 2: Verificando que el menú se abrió...');
+
+      const menuVisible = await this.page.evaluate(() => {
+        const menu = document.querySelector('[role="menu"]');
+        if (!menu) return false;
+
+        // Verificar que el menú está visible y tiene elementos
+        const menuItems = menu.querySelectorAll('[role="menuitemradio"]');
+        console.log(`Menú encontrado con ${menuItems.length} opciones`);
+        return menuItems.length > 0;
+      });
+
+      if (!menuVisible) {
+        console.log('❌ El menú no se abrió correctamente');
+        return;
+      }
+
+      console.log('✅ Menú desplegable abierto correctamente');
+
+      // ============================================================
+      // PASO 3: BUSCAR Y HACER CLICK EN "MÁS RECIENTES"
+      // ============================================================
+      console.log('📍 Paso 3: Buscando opción "Más recientes"...');
 
       let newestClicked = false;
 
-      for (const xpath of newestXpaths) {
-        try {
-          const elements = await this.page.$x(xpath);
-          if (elements.length > 0) {
-            await elements[0].click();
-            console.log('✅ Seleccionado: Más recientes');
-            newestClicked = true;
+      // Estrategia A: Usar querySelector dentro del menú (más preciso)
+      try {
+        const clickResult = await this.page.evaluate(() => {
+          const menu = document.querySelector('[role="menu"]');
+          if (!menu) return { success: false, error: 'Menú no encontrado' };
 
-            // CRÍTICO: Esperar a que se carguen las reseñas ordenadas
-            // Esto debería generar la solicitud a /maps/rpc/listugcposts
-            await this.randomDelay(4000, 5000);
-            return;
+          const menuItems = Array.from(menu.querySelectorAll('[role="menuitemradio"]'));
+          console.log('Opciones del menú:', menuItems.map(item => item.textContent.trim()));
+
+          // Buscar la opción que contenga "reciente" o "newest"
+          const newestOption = menuItems.find(item => {
+            const text = item.textContent.toLowerCase().trim();
+            return text.includes('reciente') || text.includes('newest');
+          });
+
+          if (newestOption) {
+            newestOption.click();
+            return { success: true, text: newestOption.textContent.trim() };
           }
-        } catch (e) {
-          // Continuar
+
+          return { success: false, error: 'Opción no encontrada' };
+        });
+
+        if (clickResult.success) {
+          console.log(`✅ Seleccionado: ${clickResult.text} (querySelector)`);
+          newestClicked = true;
+        } else {
+          console.log(`⚠️  querySelector falló: ${clickResult.error}`);
+        }
+      } catch (e) {
+        console.log('⚠️  Estrategia querySelector falló para menú, intentando XPath...');
+      }
+
+      // Estrategia B: Fallback con XPath
+      if (!newestClicked) {
+        const newestXpaths = [
+          '//*[@role="menuitemradio" and contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "reciente")]',
+          '//*[@role="menuitemradio" and contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "newest")]',
+          '//*[@role="menuitem" and contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "reciente")]',
+          '//*[@role="menuitem" and contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "newest")]'
+        ];
+
+        for (const xpath of newestXpaths) {
+          try {
+            const elements = await this.page.$x(xpath);
+            if (elements.length > 0) {
+              const text = await this.page.evaluate(el => el.textContent.trim(), elements[0]);
+              await elements[0].click();
+              console.log(`✅ Seleccionado: ${text} (XPath)`);
+              newestClicked = true;
+              break;
+            }
+          } catch (e) {
+            // Continuar con el siguiente XPath
+          }
         }
       }
 
       if (!newestClicked) {
-        console.log('⚠️  No se pudo seleccionar "Más recientes"');
+        console.log('❌ No se pudo seleccionar "Más recientes"');
+        return;
       }
 
+      // ============================================================
+      // PASO 4: ESPERAR A QUE SE RECARGUEN LAS RESEÑAS
+      // ============================================================
+      console.log('📍 Paso 4: Esperando recarga de reseñas ordenadas...');
+
+      // CRÍTICO: Esperar a que se carguen las reseñas ordenadas
+      // Esto debería generar nuevas solicitudes a /maps/rpc/listugcposts
+      await this.randomDelay(4000, 5000);
+
+      console.log('✅ Ordenamiento completado - las reseñas deberían estar ordenadas por más recientes');
+
     } catch (error) {
-      console.log('⚠️  Error ordenando:', error.message);
+      console.log('❌ Error ordenando:', error.message);
+      console.log('Stack:', error.stack);
     }
   }
 
