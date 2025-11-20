@@ -461,13 +461,9 @@ class GoogleMapsScraper {
             // Hacer scroll hasta la opción (crítico en headless)
             newestOption.scrollIntoView({ behavior: 'instant', block: 'nearest' });
 
-            // Esperar un frame antes de hacer click
-            return new Promise(resolve => {
-              requestAnimationFrame(() => {
-                newestOption.click();
-                resolve({ success: true, text: newestOption.textContent.trim() });
-              });
-            });
+            // Click directo sin requestAnimationFrame (más confiable en headless)
+            newestOption.click();
+            return { success: true, text: newestOption.textContent.trim() };
           }
 
           return { success: false, error: 'Opción "Más recientes" no encontrada' };
@@ -527,7 +523,8 @@ class GoogleMapsScraper {
 
       // CRÍTICO: Esperar a que se carguen las reseñas ordenadas
       // Esto debería generar nuevas solicitudes a /maps/rpc/listugcposts
-      await this.randomDelay(5000, 6000);
+      // Aumentado a 8-10 segundos para mayor confiabilidad
+      await this.randomDelay(8000, 10000);
 
       console.log('✅ Ordenamiento completado - las reseñas deberían estar ordenadas por más recientes');
 
