@@ -113,8 +113,17 @@ class JobWorker {
       // Actualizar progreso
       jobManager.updateJobProgress(jobId, 0, job.options.maxScrolls, 'Navegador iniciado, comenzando scraping...');
 
-      // Ejecutar scraping
-      const capturedResponses = await scraper.scrape(job.url);
+      // Ejecutar scraping con timeout (solo cuenta tiempo de scraping activo, no tiempo en cola)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Scraping timeout after ${job.options.timeout}ms`));
+        }, job.options.timeout);
+      });
+
+      const capturedResponses = await Promise.race([
+        scraper.scrape(job.url),
+        timeoutPromise,
+      ]);
 
       // Actualizar progreso
       jobManager.updateJobProgress(jobId, job.options.maxScrolls, job.options.maxScrolls, 'Parseando datos...');

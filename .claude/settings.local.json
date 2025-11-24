@@ -40,7 +40,9 @@
       "Bash(powershell -Command \"Start-Sleep -Seconds 5; Invoke-WebRequest -Uri ''http://localhost:3001/api/scrape'' -Method POST -Headers @{''Content-Type''=''application/json''} -Body (ConvertTo-Json @{url=''https://www.google.com/maps/place/BTK+Tecnol%C3%B3gico/@19.267822,-99.5767884,17z/data=!4m8!3m7!1s0x85cd8bdb988e3a8f:0x4f62740ae63ef3ac!8m2!3d19.267822!4d-99.5767884!9m1!1b1!16s%2Fg%2F11g_yfcy17?entry=ttu&g_ep=EgoyMDI1MTExNy4wIKXMDSoASAFQAw%3D%3D'';maxScrolls=2;headless=$true}) | Select-Object -Expand Content\")",
       "Bash(echo:*)",
       "Bash(test-api.js)",
-      "Bash(powershell -Command \"Invoke-WebRequest -Uri ''http://localhost:3001/api/jobs/job_1763616606473_bb36bc1c'' -Method GET | Select-Object -Expand Content | ConvertFrom-Json | Select-Object -Expand job | Select-Object -Expand result | Select-Object -Expand reviews | Select-Object -First 10 | Format-Table autor, fecha_relativa, calificacion, timestamp_segundos -AutoSize\")"
+      "Bash(powershell -Command \"Invoke-WebRequest -Uri ''http://localhost:3001/api/jobs/job_1763616606473_bb36bc1c'' -Method GET | Select-Object -Expand Content | ConvertFrom-Json | Select-Object -Expand job | Select-Object -Expand result | Select-Object -Expand reviews | Select-Object -First 10 | Format-Table autor, fecha_relativa, calificacion, timestamp_segundos -AutoSize\")",
+      "Bash(powershell -Command \"Invoke-WebRequest -Uri ''https://apigmaps.dinerboost.com/api/jobs/job_1763616932298_5f94453f'' -Method GET | Select-Object -Expand Content | ConvertFrom-Json | Select-Object -Expand job | Select-Object -Expand result | Select-Object -Expand reviews | Select-Object -First 5 | Format-Table autor, fecha_relativa, timestamp_segundos -AutoSize\")",
+      "Bash(export GIT_SSH_COMMAND='ssh -i /c/Users/victo/.ssh/aurora -o IdentitiesOnly=yes')"
     ],
     "deny": [],
     "ask": []
